@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ebook Library</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">Ebook Library</div>
+      <nav class="nav">
+        <a href="/upload.html" class="link">Upload (Admin)</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Available Courses</h1>
+      <p class="muted">Download PDFs from the list below.</p>
+    </section>
+
+    <section>
+      <div class="row">
+        <div class="col">
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </div>
+      </div>
+
+      <div id="status" class="status" role="status"></div>
+
+      <div id="grid" class="grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script>
+    const grid = document.getElementById('grid');
+    const statusEl = document.getElementById('status');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '<')
+        .replaceAll('>', '>')
+        .replaceAll('"', '"')
+        .replaceAll("'", '&#039;');
+    }
+
+    function prettyBytes(bytes) {
+      if (!Number.isFinite(bytes)) return '';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let i = 0;
+      let n = bytes;
+      while (n >= 1024 && i < units.length - 1) {
+        n /= 1024;
+        i++;
+      }
+      return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    async function loadEbooks() {
+      statusEl.textContent = 'Loading...';
+      grid.innerHTML = '';
+      try {
+        const res = await fetch('/api/ebooks');
+        if (!res.ok) throw new Error(await res.text());
+        const items = await res.json();
+
+        if (!items.length) {
+          statusEl.textContent = 'No ebooks uploaded yet.';
+          return;
+        }
+
+        statusEl.textContent = '';
+        for (const item of items) {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="card-title">${escapeHtml(item.title)}</div>
+            <div class="card-meta">${escapeHtml(prettyBytes(item.size))}</div>
+            <a class="btn btn-primary" href="/download/${encodeURIComponent(item.id)}">Download PDF</a>
+          `;
+          grid.appendChild(card);
+        }
+      } catch (err) {
+        statusEl.textContent = `Error: ${err?.message || err}`;
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadEbooks);
+    loadEbooks();
+  </script>
+</body>
+</html>
+
